@@ -5,17 +5,23 @@
 
 #include <SDL.h>
 #include <stdio.h>
+#include <pthread.h>
 
 #include "SDL2_inprint.h"
 #include "SDL_log.h"
 #include "SDL_render.h"
 #include "command.h"
+#include "flite/include/flite.h"
 #include "fx_cube.h"
+#include "flow.h"
 
 SDL_Window *win;
 SDL_Renderer *rend;
 SDL_Texture *maintexture;
 SDL_Color background_color = (SDL_Color){0, 0, 0, 0};
+char screenbuffer[24][40];
+char selection_buffer[24][40];
+int new_selection_row = -1;
 
 static uint32_t ticks_fps;
 static int fps;
@@ -25,8 +31,6 @@ static uint8_t dirty = 0;
 
 // Initializes SDL and creates a renderer and required surfaces
 int initialize_sdl(int init_fullscreen, int init_use_gpu) {
-  //ticks = SDL_GetTicks();
-
   const int window_width = 640;  // SDL window width
   const int window_height = 480; // SDL window height
 
@@ -34,6 +38,7 @@ int initialize_sdl(int init_fullscreen, int init_use_gpu) {
     SDL_LogCritical(SDL_LOG_CATEGORY_ERROR, "SDL_Init: %s\n", SDL_GetError());
     return -1;
   }
+  
   // SDL documentation recommends this
   atexit(SDL_Quit);
 
@@ -89,6 +94,24 @@ int draw_character(struct draw_character_command *command) {
                      (command->foreground.g << 8) | command->foreground.b;
   uint32_t bgcolor = (command->background.r << 16) |
                      (command->background.g << 8) | command->background.b;
+
+  int virtual_y = (command->pos.y - 10) / 10;
+  int virtual_x = (command->pos.x - 8) / 8;
+
+  screenbuffer[virtual_y][virtual_x] = (char) command->c;
+
+  if(bgcolor == 0) {
+    // We're drawing an unselected character
+    selection_buffer[virtual_y][virtual_x] = (char) ' ';
+  } else {
+    // Drawing a selected character
+    selection_buffer[virtual_y][virtual_x] = (char) command->c;
+
+    if(new_selection_row != virtual_y)
+    {
+      new_selection_row = virtual_y;
+    }
+  }
 
   if (bgcolor == fgcolor) {
     // When bgcolor and fgcolor are the same, do not render a background
@@ -217,16 +240,48 @@ void display_keyjazz_overlay(uint8_t show, uint8_t base_octave,
   dirty = 1;
 }
 
+int flow_initialized = 0;
+pthread_t current_flow_thread;
+int flow_running = 0;
+
+void* flow_threadproc() {
+  flow_running = 1;
+
+  // Sleep for 0.1 seconds
+  struct timespec remaining, request = { 0, 1e8 };
+  nanosleep(&request, &remaining);
+
+  speak_flow();
+  flow_initialized = 1;
+  flow_running = 0;
+
+  return NULL;
+}
+
+// Launch as a background thread with a slight delay, since render_screen is
+// often called many times while the screen is repainting.
+void dispatch_flow() {
+
+  if(flow_initialized && flow_running)
+  {
+    pthread_cancel(current_flow_thread);
+  }
+
+  pthread_create(&current_flow_thread, NULL, flow_threadproc, NULL);
+}
+
 void render_screen() {
   if (dirty) {
     dirty = 0;
-    //ticks = SDL_GetTicks();
+    
     SDL_SetRenderTarget(rend, NULL);
     SDL_SetRenderDrawColor(rend, 0, 0, 0, 0);
     SDL_RenderClear(rend);
     SDL_RenderCopy(rend, maintexture, NULL, NULL);
     SDL_RenderPresent(rend);
     SDL_SetRenderTarget(rend, maintexture);
+
+    dispatch_flow();
 
     fps++;
 

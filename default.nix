@@ -19,6 +19,10 @@ let m8c-package =
   , gnumake
   , SDL2
   , libserialport
+  , libflite
+  , flite_usenglish
+  , flite_cmulex
+  , asound
   , fetchFromGitHub
   }:
 
@@ -38,7 +42,7 @@ let m8c-package =
 
       installFlags = [ "PREFIX=$(out)" ];
       nativeBuildInputs = [ gnumake ];
-      buildInputs = [ SDL2 libserialport ];
+      buildInputs = [ SDL2 libserialport libflite flite_usenglish flite_cmulex asound ];
     };
 in {
   m8c-stable = pkgs.callPackage m8c-package {};
