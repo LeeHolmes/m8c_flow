@@ -44,8 +44,8 @@
 TOP=.
 DIRNAME=
 BUILD_DIRS = include src lang
-ALL_DIRS=config $(BUILD_DIRS)
-CONFIG=configure configure.in config.sub config.guess
+ALL_DIRS = config $(BUILD_DIRS)
+CONFIG = configure configure.in config.sub config.guess
 FILES = Makefile README.md ACKNOWLEDGEMENTS COPYING $(CONFIG)
 DIST_CLEAN = .time-stamp $(TOP)/build/ \
                 config.cache config.log config.status \

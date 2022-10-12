@@ -51,8 +51,9 @@ endif
 
 CPPFLAGS += $(LOCAL_INCLUDES) $(INCLUDES)
 CFLAGS += $(EXTRA_CC_FLAGS) $(OPT) $(DBG)
+
 ## These'll become (target)arch dependent at some point
-TARGET_PLATFORM=$(TARGET_CPU)-$(TARGET_OS)
+TARGET_PLATFORM=common
 HOST_PLATFORM=$(HOST_CPU)-$(HOST_OS)
 ifndef BUILDDIR
 BUILDDIR=$(TOP)/build/$(TARGET_PLATFORM)

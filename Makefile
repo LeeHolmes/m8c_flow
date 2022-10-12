@@ -1,3 +1,6 @@
+BUILD_DIRS = flite
+ALL_DIRS = $(BUILD_DIRS)
+
 #Set all your object files (the object files of all the .c files in your project, e.g. main.o my_sub_functions.o )
 OBJ = main.o serial.o slip.o command.o write.o render.o ini.o config.o input.o font.o fx_cube.o flow.o
 
@@ -8,7 +11,7 @@ DEPS = serial.h slip.h command.h write.h render.h ini.h config.h input.h fx_cube
 INCLUDES = $(shell pkg-config --libs sdl2 libserialport) -lflite_usenglish -lflite -lflite_cmulex -pthread -lm -lasound
 
 #Set any compiler flags you want to use (e.g. -I/usr/include/somefolder `pkg-config --cflags gtk+-3.0` ), or leave blank
-local_CFLAGS = $(CFLAGS) $(shell pkg-config --cflags sdl2 libserialport) -Wall -O2 -pipe -I. -Lflite
+local_CFLAGS = $(CFLAGS) $(shell pkg-config --cflags sdl2 libserialport) -Wall -O2 -pipe -I. -Lflite/build/common/lib
 
 #Set the compiler you are using ( gcc for C or g++ for C++ )
 CC = gcc
@@ -20,10 +23,13 @@ EXTENSION = .c
 %.o: %$(EXTENSION) $(DEPS)
 	$(CC) -c -o $@ $< $(local_CFLAGS)
 
+all: $(BUILD_DIRS) $(OBJDIR)/.make_build_dirs m8c
+
 #Combine them into the output file
 #Set your desired exe output file name here
 m8c: $(OBJ)
 	$(CC) -o $@ $^ $(local_CFLAGS) $(INCLUDES)
+	cp flite/lang/cmu_us_fem.flitevox .
 
 font.c: inline_font.h
 	@echo "#include <SDL.h>" > $@-tmp1
@@ -35,10 +41,28 @@ font.c: inline_font.h
 	@echo "[~cat] inline_font.h inprint2.c > font.c"
 #	$(CC) -c -o font.o font.c $(local_CFLAGS)
 
+$(OBJDIR)/.make_build_dirs:
+	@ echo making in $(DIRNAME) ...
+ifdef BUILD_DIRS
+	@ set -e; for i in $(BUILD_DIRS) $(OTHER_BUILD_DIRS) ; \
+	do \
+	   $(MAKE) -C $$i --no-print-directory; \
+	done
+endif
+
 #Cleanup
 .PHONY: clean
 
 clean:
+	@ echo make clean in $(DIRNAME) ...
+	@ rm -rf .build_lib .build_so *.o *.os *.a *~ $(LOCAL_CLEAN) $(OBJDIR)
+ifdef ALL_DIRS
+	@ set -e; for i in $(ALL_DIRS) ; \
+	do \
+	   $(MAKE) -C $$i --no-print-directory clean; \
+	done
+endif
+
 	rm -f *.o *~ m8c *~ font.c
 
 # PREFIX is environment variable, but if it is not set, then set default value
