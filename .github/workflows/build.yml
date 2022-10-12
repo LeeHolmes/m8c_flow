@@ -42,10 +42,11 @@ jobs:
       id: date
       run: echo "::set-output name=date::$(date +%Y%m%d)"
 
+    - name: configure
+      run: ./configure
+
     - name: 'Build package'
       run: |
-        chmod u+x ./configure
-        ./configure
         make
         strip -g m8c.exe
         if [ ${{ matrix.win }} == "win32" ]
@@ -105,11 +106,11 @@ jobs:
         id: date
         run: echo "::set-output name=date::$(date +%Y%m%d)"
 
+      - name: configure
+        run: ./configure
+
       - name: 'Build package'
-        run: |
-          chmod u+x ./configure
-          ./configure
-          make
+        run: make
       - name: 'Upload artifact'
         uses: actions/upload-artifact@v2
         with:
@@ -136,10 +137,11 @@ jobs:
         id: date
         run: echo "::set-output name=date::$(date +%Y%m%d)"
 
+      - name: configure
+        run: ./configure
+
       - name: 'Build package'
         run: |
-          chmod u+x ./configure
-          ./configure
           make
           chmod 755 m8c
           cd macos/m8c.app/Contents/
