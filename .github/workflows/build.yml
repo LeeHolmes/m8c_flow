@@ -44,6 +44,7 @@ jobs:
 
     - name: 'Build package'
       run: |
+        chmod u+x ./configure
         ./configure
         make
         strip -g m8c.exe
@@ -106,6 +107,7 @@ jobs:
 
       - name: 'Build package'
         run: |
+          chmod u+x ./configure
           ./configure
           make
       - name: 'Upload artifact'
@@ -136,6 +138,7 @@ jobs:
 
       - name: 'Build package'
         run: |
+          chmod u+x ./configure
           ./configure
           make
           chmod 755 m8c
