@@ -49,6 +49,8 @@
 
 typedef struct  cst_wave_struct {
     const char *type;
+    int frameIndex;
+    int maxFrameIndex;
     int sample_rate;
     int num_samples;
     int num_channels;
@@ -73,10 +75,14 @@ cst_wave *concat_wave(cst_wave *dest, const cst_wave *src);
 #define cst_wave_num_channels(w) (w?w->num_channels:0)
 #define cst_wave_sample_rate(w) (w?w->sample_rate:0)
 #define cst_wave_samples(w) (w->samples)
+#define cst_wave_frameIndex(w) (w->frameIndex)
+#define cst_wave_maxFrameIndex(w) (w->maxFrameIndex)
 
 #define cst_wave_set_num_samples(w,s) w->num_samples=s
 #define cst_wave_set_num_channels(w,s) w->num_channels=s
 #define cst_wave_set_sample_rate(w,s) w->sample_rate=s
+#define cst_wave_set_frameIndex(w,s) w->frameIndex=s
+#define cst_wave_set_maxFrameIndex(w,s) w->maxFrameIndex=s
 
 int cst_wave_save(cst_wave *w, const char *filename, const char *type);
 int cst_wave_save_riff(cst_wave *w, const char *filename);

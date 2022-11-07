@@ -36,7 +36,7 @@ jobs:
       with:
         msystem: ${{ matrix.sys }}
         update: true
-        install: mingw-w64-${{ matrix.env }}-toolchain make mingw-w64-${{ matrix.env }}-SDL2 mingw-w64-${{ matrix.env }}-libserialport zip dos2unix
+        install: mingw-w64-${{ matrix.env }}-toolchain make mingw-w64-${{ matrix.env }}-SDL2 mingw-w64-${{ matrix.env }}-libserialport mingw-w64-${{ matrix.env }}-portaudio zip dos2unix
   
     - name: 'Get current date'
       id: date
@@ -55,9 +55,12 @@ jobs:
           cp /mingw32/bin/libgcc_s_dw2-1.dll .
           cp /mingw32/bin/libserialport-0.dll .
           cp /mingw32/bin/libwinpthread-1.dll .
+          cp /mingw32/bin/libportaudio.dll .
         else
           cp /mingw64/bin/SDL2.dll .
           cp /mingw64/bin/libserialport-0.dll .
+          cp /mingw64/bin/libwinpthread-1.dll .
+          cp /mingw64/bin/libportaudio.dll .
         fi
         unix2dos README.md config.ini.sample LICENSE AUDIOGUIDE.md
     - name: 'Upload artifact (win32)'
@@ -71,6 +74,7 @@ jobs:
           libserialport-0.dll
           libgcc_s_dw2-1.dll
           libwinpthread-1.dll
+          libportaudio.dll
           gamecontrollerdb.txt
           LICENSE
           README.md
@@ -85,6 +89,8 @@ jobs:
           m8c.exe
           SDL2.dll
           libserialport-0.dll
+          libwinpthread-1.dll
+          libportaudio.dll
           gamecontrollerdb.txt
           LICENSE
           README.md
@@ -98,7 +104,7 @@ jobs:
       - name: 'Install dependencies'
         run: |
           sudo apt-get update
-          sudo apt-get install --fix-missing build-essential libsdl2-dev libserialport-dev zip
+          sudo apt-get install --fix-missing build-essential libsdl2-dev libserialport-dev libportaudio-dev zip
       - name: 'Checkout'
         uses: actions/checkout@v2
 
@@ -128,7 +134,7 @@ jobs:
     
     steps:
       - name: 'Install dependencies'
-        run: brew install sdl2 libserialport pkg-config
+        run: brew install sdl2 libserialport portaudio pkg-config
 
       - name: 'Checkout'
         uses: actions/checkout@v2
@@ -150,8 +156,10 @@ jobs:
           cp ../../../../m8c .
           cp /usr/local/opt/sdl2/lib/libSDL2* .
           cp /usr/local/opt/libserialport/lib/libserialport.* .
+          cp /usr/local/opt/libportaudio/libportaudio.* .
           install_name_tool -change /usr/local/opt/libserialport/lib/libserialport.0.dylib @executable_path/libserialport.0.dylib m8c
           install_name_tool -change /usr/local/opt/sdl2/lib/libSDL2-2.0.0.dylib @executable_path/libSDL2-2.0.0.dylib m8c
+          install_name_tool -change /usr/local/opt/libportaudio/libportaudio.dylib @executable_path/libportaudio.dylib m8c
           cd ../../../../
           cp -r macos/m8c.app .
           zip -r m8c.zip m8c.app LICENSE README.md AUDIOGUIDE.md config.ini.sample gamecontrollerdb.txt

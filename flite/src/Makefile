@@ -44,4 +44,3 @@ FILES = Makefile
 ALL = $(BUILD_DIRS)
 
 include $(TOP)/config/common_make_rules
-

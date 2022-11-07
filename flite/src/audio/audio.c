@@ -41,6 +41,7 @@
 #include "cst_wave.h"
 #include "cst_audio.h"
 #include "native_audio.h"
+#include "portaudio.h"
 
 int audio_bps(cst_audiofmt fmt)
 {
@@ -218,84 +219,181 @@ int audio_flush(cst_audiodev *ad)
     return AUDIO_FLUSH_NATIVE(ad);
 }
 
-int play_wave(cst_wave *w)
-{
-    cst_audiodev *ad;
-    int i,n,r;
-    int num_shorts;
+/**
+ * Audio play callback.
+ * 
+ * Follows the PaStreamCallback signature, wherein:
+ * 
+ * @param input   and
+ * @param output  are either arrays of interleaved samples or; if
+ *                non-interleaved samples were requested using the
+ *                paNonInterleaved sample format flag, an array of buffer
+ *                pointers, one non-interleaved buffer for each channel.
+ * @param frameCount    The number of sample frames to be processed by the
+ *                      stream callback.
+ * @param timeInfo      Timestamps indicating the ADC capture time of the first
+ *                      sample in the input buffer, the DAC output time of the
+ *                      first sample in the output buffer and the time the
+ *                      callback was invoked. See PaStreamCallbackTimeInfo and
+ *                      Pa_GetStreamTime()
+ * @param statusFlags   Flags indicating whether input and/or output buffers
+ *                      have been inserted or will be dropped to overcome
+ *                      underflow or overflow conditions.
+ * @param userData      The value of a user supplied pointer passed to
+ *                      Pa_OpenStream() intended for storing synthesis data
+ *                      etc.
+ */
 
-    if (!w)
-	return CST_ERROR_FORMAT;
-    
-    if ((ad = audio_open(w->sample_rate, w->num_channels,
-			 /* FIXME: should be able to determine this somehow */
-			 CST_AUDIO_LINEAR16)) == NULL)
-	return CST_ERROR_FORMAT;
+static int  playCallback(const void*                     inputBuffer,
+                         void*                           outputBuffer,
+                         unsigned long                   framesPerBuffer,
+                         const PaStreamCallbackTimeInfo* timeInfo,
+                         PaStreamCallbackFlags           statusFlags,
+                         void*                           userData){
+    (void) inputBuffer; /* Prevent unused variable warnings. */
+    (void) timeInfo;
+    (void) statusFlags;
+    (void) userData;
 
-    num_shorts = w->num_samples*w->num_channels;
-    for (i=0; i < num_shorts; i += r/2)
-    {
-	if (num_shorts > i+CST_AUDIOBUFFSIZE)
-	    n = CST_AUDIOBUFFSIZE;
-	else
-	    n = num_shorts-i;
-	r = audio_write(ad,&w->samples[i],n*2);
-	if (r <= 0)
-	{
-	    cst_errmsg("failed to write %d samples\n",n);
-	    break;
-	}
-    }
 
-    audio_flush(ad);
-    audio_close(ad);
+    /**
+     * Compute current processing state.
+     */
 
-    return CST_OK_FORMAT;
+    cst_wave*    data;
+    short*       rptr;
+    short*       wptr;
+    unsigned int framesLeft, /* Number of frames of data remaining within the stream ***as a whole*** */
+                 frames,     /* Number of frames of data to be written for this buffer. */
+                 framesPad,  /* Number of frames of padding required within the final buffer. */
+                 samples,    /* Number of samples of data to be written for this buffer. */
+                 samplesPad, /* Number of samples of padding required within the final buffer. */
+                 numBytes,   /* Number of bytes of data to be written for this buffer. */
+                 numBytesPad;/* Number of bytes of padding required within the final buffer. */
+    int          finalBuffer;/* Stores whether or not this is the final buffer. */
+
+
+    data         = (cst_wave*)userData;
+    rptr         = &data->samples[cst_wave_frameIndex  (data) *
+                                  cst_wave_num_channels(data)];
+    wptr         = (short*)outputBuffer;
+    framesLeft   = cst_wave_maxFrameIndex(data) - cst_wave_frameIndex(data);
+    finalBuffer  = framesLeft      <= framesPerBuffer;
+    frames       = finalBuffer     ?  framesLeft     : framesPerBuffer;
+    framesPad    = framesPerBuffer -  frames;
+    samples      = frames     * cst_wave_num_channels(data);
+    samplesPad   = framesPad  * cst_wave_num_channels(data);
+    numBytes     = samples    * sizeof(short);
+    numBytesPad  = samplesPad * sizeof(short);
+
+    /**
+     * Output data. We handle the final buffer specially, padding it with zeros.
+     */
+
+    memcpy(wptr, rptr, numBytes);
+    wptr += samples;
+    rptr += samples;
+    cst_wave_set_frameIndex(data, cst_wave_frameIndex(data) + frames);
+    memset(wptr, 0, numBytesPad);
+    wptr += samplesPad;
+    rptr += samplesPad;
+
+
+    /**
+     * Return a completion or continue code depending on whether this was the
+     * final buffer or not respectively.
+     */
+
+    return finalBuffer ? paComplete : paContinue;
 }
 
-int play_wave_sync(cst_wave *w, cst_relation *rel,
-		   int (*call_back)(cst_item *))
-{
-    int q,i,n,r;
-    cst_audiodev *ad;
-    float r_pos;
-    cst_item *item;
+/**
+ * Play wave function.
+ * 
+ * Plays the given cst_wave data as audio, blocking until this is done.
+ */
 
-    if (!w)
-	return CST_ERROR_FORMAT;
-    
-    if ((ad = audio_open(w->sample_rate,w->num_channels,
-			 CST_AUDIO_LINEAR16)) == NULL)
-	return CST_ERROR_FORMAT;
+int play_wave(cst_wave *w){
+    PaStream*          stream;
+    PaStreamParameters outputParameters;
+    int                err;
 
-    q=0;
-    item = relation_head(rel);
-    r_pos = w->sample_rate * 0;
-    for (i=0; i < w->num_samples; i += r/2)
-    {
-	if (i >= r_pos)
-	{
-	    audio_flush(ad);
+    /**
+     * Initialize custom fields in cst_wave struct.
+     */
 
-	    if ((*call_back)(item) != CST_OK_FORMAT)
-		break;
-	    item = item_next(item);
-	    if (item)
-		r_pos = w->sample_rate * val_float(ffeature(item,"p.end"));
-	    else
-		r_pos = w->num_samples;
-	}
-	if (w->num_samples > i+CST_AUDIOBUFFSIZE)
-	    n = CST_AUDIOBUFFSIZE;
-	else
-	    n = w->num_samples-i;
-	r = audio_write(ad,&w->samples[i],n*2);
-	q +=r;
-	if (r <= 0)
-	    cst_errmsg("failed to write %d samples\n",n);
+    cst_wave_set_frameIndex(w, 0);
+    cst_wave_set_maxFrameIndex(w, (cst_wave_num_samples(w)));
+    // / cst_wave_sample_rate(w)  * cst_wave_num_channels(w) * sizeof(short)
+
+
+    /**
+     * Initialize Port Audio device and stream parameters.
+     */
+
+    err = Pa_Initialize();
+    outputParameters.device = Pa_GetDefaultOutputDevice();
+    if (outputParameters.device == paNoDevice){
+        fprintf(stderr,"Error: No default output device.\n");
+        return -5;
     }
 
-    audio_close(ad);
+    outputParameters.channelCount = cst_wave_num_channels(w);
+    outputParameters.sampleFormat = paInt16;
+    outputParameters.suggestedLatency = Pa_GetDeviceInfo( outputParameters.device )->defaultLowOutputLatency;
+    outputParameters.hostApiSpecificStreamInfo = NULL;
 
-    return CST_OK_FORMAT;
+
+    /**
+     * Open the stream for playback.
+     */
+
+    err = Pa_OpenStream(&stream,
+                        NULL, /* no input */
+                        &outputParameters,
+                        cst_wave_sample_rate(w),
+                        512,
+                        paClipOff,
+                        playCallback,
+                        w);
+
+    if(stream){
+        /**
+         * Start the stream.
+         */
+
+        err = Pa_StartStream(stream);
+        if(err != paNoError){
+            goto done;
+        }
+
+        /**
+         * Block while it plays.
+         */
+
+        while((err = Pa_IsStreamActive(stream)) == 1){
+            Pa_Sleep(100);
+        }
+        if(err < 0){
+            goto done;
+        }
+
+
+        /**
+         * Stop and close the stream. Both are necessary.
+         */
+
+        Pa_StopStream(stream);
+        err = Pa_CloseStream(stream);
+        if(err != paNoError){
+            goto done;
+        }
+    }
+
+    /**
+     * Terminate and leave.
+     */
+done:
+    Pa_Terminate();
+    return 0;
 }
