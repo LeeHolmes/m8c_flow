@@ -4369,12 +4369,12 @@ if test "x$ac_cv_header_sys_audioio_h" = xyes; then :
 fi
 
 
-# We're going to make alsa the default now, if supported
+# We're going to make portaudio the default now, if supported
 ac_fn_c_check_header_mongrel "$LINENO" "alsa/asoundlib.h" "ac_cv_header_alsa_asoundlib_h" "$ac_includes_default"
 if test "x$ac_cv_header_alsa_asoundlib_h" = xyes; then :
-  AUDIODRIVER="alsa"
-	       AUDIODEFS=-DCST_AUDIO_ALSA
-               AUDIOLIBS=-lasound
+  AUDIODRIVER="portaudio"
+	       AUDIODEFS=-DCST_AUDIO_PORTAUDIO
+               AUDIOLIBS=-lportaudio
 fi
 
 
