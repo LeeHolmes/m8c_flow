@@ -104,7 +104,7 @@ jobs:
       - name: 'Install dependencies'
         run: |
           sudo apt-get update
-          sudo apt-get install --fix-missing build-essential libsdl2-dev libserialport-dev libportaudio-dev zip
+          sudo apt-get install --fix-missing build-essential libsdl2-dev libserialport-dev portaudio19-dev zip
       - name: 'Checkout'
         uses: actions/checkout@v2
 
@@ -156,7 +156,7 @@ jobs:
           cp ../../../../m8c .
           cp /usr/local/opt/sdl2/lib/libSDL2* .
           cp /usr/local/opt/libserialport/lib/libserialport.* .
-          cp /usr/local/opt/libportaudio/libportaudio.* .
+          cp /usr/local/lib/libportaudio.* .
           install_name_tool -change /usr/local/opt/libserialport/lib/libserialport.0.dylib @executable_path/libserialport.0.dylib m8c
           install_name_tool -change /usr/local/opt/sdl2/lib/libSDL2-2.0.0.dylib @executable_path/libSDL2-2.0.0.dylib m8c
           install_name_tool -change /usr/local/opt/libportaudio/libportaudio.dylib @executable_path/libportaudio.dylib m8c
