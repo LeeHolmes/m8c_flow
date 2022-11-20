@@ -154,6 +154,7 @@ jobs:
           mkdir MacOS
           cd MacOS
           cp ../../../../m8c .
+          cp ../../../../cmu_us_fem.flitevox .
           cp /usr/local/opt/sdl2/lib/libSDL2* .
           cp /usr/local/opt/libserialport/lib/libserialport.* .
           cp /usr/local/opt/portaudio/lib/libportaudio.* .
