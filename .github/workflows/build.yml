@@ -159,7 +159,7 @@ jobs:
           cp /usr/local/opt/portaudio/lib/libportaudio.* .
           install_name_tool -change /usr/local/opt/libserialport/lib/libserialport.0.dylib @executable_path/libserialport.0.dylib m8c
           install_name_tool -change /usr/local/opt/sdl2/lib/libSDL2-2.0.0.dylib @executable_path/libSDL2-2.0.0.dylib m8c
-          install_name_tool -change /usr/local/opt/portaudio/lib/libportaudio.dylib @executable_path/libportaudio.dylib m8c
+          install_name_tool -change /usr/local/opt/portaudio/lib/libportaudio.2.dylib @executable_path/libportaudio.2.dylib m8c
           cd ../../../../
           cp -r macos/m8c.app .
           zip -r m8c.zip m8c.app LICENSE README.md AUDIOGUIDE.md config.ini.sample gamecontrollerdb.txt
